@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Panels field: one painted image and three tap zones across its full height (flip, middle, flip). -->
+<!--
+    The Panels field: one painted image and three tap zones across its full height (flip, middle, flip).
+    The image is clipped to the rounded box the Karoo draws around every field (Android 12+).
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -8,8 +12,11 @@
         android:id="@+id/field_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@drawable/field_outline"
+        android:clipToOutline="true"
         android:importantForAccessibility="no"
-        android:scaleType="fitXY" />
+        android:scaleType="fitXY"
+        tools:targetApi="31" />
 
     <LinearLayout
         android:layout_width="match_parent"

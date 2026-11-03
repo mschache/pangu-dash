@@ -1249,7 +1249,9 @@ class FieldPainter(context: Context) {
         val p = if (hero != null) m.palette.copy(text = hero.textColor, dim = hero.dimColor) else m.palette
         val pad = min(w, h) * 0.06f
         val titleH = (h * 0.15f).coerceIn(m.density * 9f, m.density * 15f)
-        val titleR = RectF(pad, pad * 0.5f, w - pad, pad * 0.5f + titleH)
+        // The title line sits in the Karoo's rounded corners, so it starts clear of their curve.
+        val edge = max(pad, m.density * FIELD_CORNER_DP * 0.7f)
+        val titleR = RectF(edge, pad * 0.75f, w - edge, pad * 0.75f + titleH)
         compactTitle(c, m, p, titleR)
         val body = RectF(pad, titleR.bottom + pad * 0.5f, w - pad, h - pad * 0.6f)
         when (val b = m.body) {
@@ -1397,6 +1399,8 @@ class FieldPainter(context: Context) {
         const val LABEL_TO_INK = 0.6f
         const val BLACK = 0xFF000000.toInt()
         const val LABEL_TRACKING = 0.04f
+        /** The Karoo's own field box corner (field_outline.xml). */
+        const val FIELD_CORNER_DP = 10.67f
         const val CARD_CORNER_DP = 7f
         const val CHIP_CORNER_DP = 4.5f
         const val MAX_DOTS = 7
