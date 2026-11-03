@@ -1,6 +1,7 @@
 package io.github.mschache.karoopro
 
 import io.github.mschache.karoopro.calc.Climbs
+import io.github.mschache.karoopro.calc.Descents
 import io.github.mschache.karoopro.calc.ElevationProfile
 import io.github.mschache.karoopro.calc.GeoPoint
 import io.github.mschache.karoopro.calc.GradeRuns
@@ -101,6 +102,73 @@ class MapLayerMemoryTest {
         restarted.remember(listOf("wind-0"), emptyList())
         restarted.remember(emptyList(), emptyList())
         assertTrue(restarted.takeLeftovers().isEmpty)
+    }
+}
+
+class DescentsTest {
+    private fun profile(vararg pts: Pair<Double, Double>) = ElevationProfile(pts.map { ProfilePoint(it.first, it.second) })
+
+    @Test fun findsTheDemoRoutesLastDescent() {
+        val p = ElevationProfile(RouteTracker.DEMO_PROFILE)
+        val descents = Descents.detect(p)
+        // 9.8 km at 170 m down to 12 km at 40 m: 130 m lost at about 6 %.
+        val last = descents.last()
+        assertEquals(9_800.0, last.start, 50.0)
+        assertEquals(12_000.0, last.end, 50.0)
+        assertEquals(130.0, last.drop, 5.0)
+        assertEquals(5.9, last.avgGrade, 0.5)
+        assertTrue(last.maxGrade > 0)
+        // Climbs and descents never overlap: the first descent starts after the first climb's top.
+        val climbs = Climbs.detect(p)
+        assertTrue(descents.first().start >= climbs.first().end)
+    }
+
+    @Test fun ignoresShallowAndShortDrops() {
+        // 2 % for 2 km: not a descent.
+        assertTrue(Descents.detect(profile(0.0 to 100.0, 500.0 to 100.0, 2_500.0 to 60.0, 3_000.0 to 60.0)).isEmpty())
+        // 20 m drop at 5 %: too small.
+        assertTrue(Descents.detect(profile(0.0 to 100.0, 500.0 to 100.0, 900.0 to 80.0, 2_000.0 to 80.0)).isEmpty())
+        // 2 km at 5 %: one descent from its top to its bottom.
+        val d = Descents.detect(profile(0.0 to 200.0, 500.0 to 200.0, 2_500.0 to 100.0, 3_000.0 to 100.0))
+        assertEquals(1, d.size)
+        assertEquals(500.0, d[0].start, 50.0)
+        assertEquals(2_500.0, d[0].end, 50.0)
+        assertEquals(100.0, d[0].drop, 5.0)
+    }
+
+    @Test fun progressDownToTheBottomAndOnToTheNextDescent() {
+        val p = ElevationProfile(RouteTracker.DEMO_PROFILE)
+        val descents = Descents.detect(p)
+        val last = descents.size
+        val before = Descents.progress(descents, 9_000.0, p)!!
+        assertEquals(last, before.number)
+        assertFalse(before.onDescent)
+        assertEquals(800.0, before.toStart, 50.0)
+        assertEquals(before.descent.length, before.toBottom, 1.0)
+
+        val on = Descents.progress(descents, 10_900.0, p)!!
+        assertTrue(on.onDescent)
+        assertEquals(1_100.0, on.toBottom, 50.0)
+        assertEquals(p.at(10_900.0) - 40.0, on.elevationToBottom, 2.0)
+        assertEquals(5.9, on.avgGradeLeft!!, 0.5)
+
+        // The slices follow the real, downhill profile, so their grades are negative.
+        val view = Descents.view(descents, 10_900.0, p)!!
+        assertEquals(24, view.slices.size)
+        assertTrue(view.slices.all { it.grade <= 0.0 })
+        assertEquals(1_100.0, view.riderAt!!, 50.0)
+
+        assertNull(Descents.progress(descents, 12_100.0, p))
+    }
+
+    @Test fun mapRunsBucketDescentsByHowSteepTheyDrop() {
+        val p = profile(0.0 to 200.0, 500.0 to 200.0, 1_500.0 to 130.0, 2_500.0 to 130.0)
+        val down = GradeRuns.runs(p, 0.0, 2_500.0, descents = true)
+        // 7 % down for 1 km: bucket 1 (6–9 %); the flat ends are -1.
+        assertTrue(down.any { it.bucket == 1 })
+        assertTrue(down.none { it.bucket > 1 })
+        // The same profile holds no climb runs.
+        assertTrue(GradeRuns.runs(p, 0.0, 2_500.0).all { it.bucket == -1 })
     }
 }
 

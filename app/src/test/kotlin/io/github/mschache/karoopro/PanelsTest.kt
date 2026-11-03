@@ -94,6 +94,19 @@ class CompactBodyTest {
         assertTrue(FieldModelBuilder.compactBody(coach, p) is CompactText)
     }
 
+    @Test fun descentSlideMirrorsTheClimb() {
+        val deck = listOf(Panel.NUMBER) + Panel.PANELS
+        val model = FieldModelBuilder.compact(DemoSource(Settings(), Profile.DEFAULT), Panel.DESCENT, deck, 1.875f, interactive = true, systemDark = true)
+        assertEquals("DESCENT 1/1", model.title)
+        val cells = model.body as CompactCells
+        assertEquals(listOf("TO BOTTOM", "DOWN", "AVG LEFT", "GRADE", "SPEED", "BOTTOM IN", "STEEPEST"), cells.cells.map { it.label })
+        // Grades read negative on a descent, and the 12 % stretch ahead is flagged.
+        assertTrue(cells.cells[2].value.startsWith("-"))
+        assertTrue(cells.cells.last().value.startsWith("-12"))
+        assertEquals(p.bad, cells.cells.last().color)
+        assertTrue(cells.bar!! > 0.2f && cells.bar!! < 0.5f)
+    }
+
     @Test fun everySlideBuildsFromDemoData() {
         val settings = Settings()
         val deck = listOf(Panel.NUMBER) + Panel.PANELS

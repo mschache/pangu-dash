@@ -16,6 +16,7 @@ import io.github.mschache.karoopro.data.RideDataHub
 import io.github.mschache.karoopro.data.RouteTracker
 import io.github.mschache.karoopro.data.Settings
 import io.github.mschache.karoopro.karoo.httpGet
+import io.github.mschache.karoopro.ui.field.DESCENT_COLORS
 import io.github.mschache.karoopro.weather.OpenMeteo
 import io.hammerhead.karooext.internal.Emitter
 import io.hammerhead.karooext.models.DataType
@@ -69,7 +70,7 @@ class MapLayers(
                 try {
                     val s = settings.value
                     val r = routes.current()
-                    val anyLayer = s.mapWindRoute || s.mapClimbs || s.mapWindArrows
+                    val anyLayer = s.mapWindRoute || s.mapClimbs || s.mapDescents || s.mapWindArrows
                     val state = "nav=${hub.navigation.value?.javaClass?.simpleName} route=${r?.geometry?.length?.toInt()} m " +
                         "profile=${r?.profile?.size} wind=${wind?.samples?.size}"
                     if (state != lastState) {
@@ -162,10 +163,15 @@ class MapLayers(
     private fun layers(s: Settings, r: RouteTracker.Route, along: Double): Pair<List<ShowPolyline>, List<Symbol>> {
         val g = r.geometry
         val lines = ArrayList<ShowPolyline>()
-        val both = s.mapClimbs && s.mapWindRoute
+        val both = (s.mapClimbs || s.mapDescents) && s.mapWindRoute
         if (s.mapClimbs && r.profile.isNotEmpty()) {
             GradeRuns.runs(r.elevation, along, minOf(g.length, along + CLIMB_AHEAD_M)).forEachIndexed { i, run ->
                 lines += line("climb-$i", g, run, CLIMB_COLORS[run.bucket], if (both) 16 else 10)
+            }
+        }
+        if (s.mapDescents && r.profile.isNotEmpty()) {
+            GradeRuns.runs(r.elevation, along, minOf(g.length, along + CLIMB_AHEAD_M), descents = true).forEachIndexed { i, run ->
+                lines += line("descent-$i", g, run, DESCENT_COLORS[run.bucket], if (both) 16 else 10)
             }
         }
         val samples = wind?.takeIf { it.routeKey == r.key }?.samples.orEmpty()

@@ -167,6 +167,8 @@ data class ClimbContent(
     val rider: Float?,
     /** Shown instead of everything else when there's no climb. */
     val message: String? = null,
+    /** A descent: the profile goes downhill in blue hues, and [effort] names the steepest stretch ahead, not W′. */
+    val descent: Boolean = false,
 ) : PanelContent
 
 data class SegmentContent(

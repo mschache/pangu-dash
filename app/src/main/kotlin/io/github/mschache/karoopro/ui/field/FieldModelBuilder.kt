@@ -102,6 +102,10 @@ object FieldModelBuilder {
                 listOf(Metric.GRADE, Metric.VAM, Metric.DISTANCE).mapNotNullTo(this) { it.karoo?.typeId }
                 add(DataType.Type.DISTANCE_TO_DESTINATION)
             }
+            Panel.DESCENT -> {
+                listOf(Metric.GRADE, Metric.SPEED, Metric.DISTANCE).mapNotNullTo(this) { it.karoo?.typeId }
+                add(DataType.Type.DISTANCE_TO_DESTINATION)
+            }
             Panel.BIKE -> {
                 add(DataType.Type.SHIFTING_GEARS)
                 add(DataType.Type.SHIFTING_BATTERY)
@@ -161,7 +165,12 @@ object FieldModelBuilder {
             is ClimbContent -> content.message?.let { CompactCells(emptyList(), message = it) }
                 ?: CompactCells(
                     (content.big + content.stats).map { cell(it) } +
-                        listOfNotNull(content.effort?.let { StripCell("W′", it.removePrefix("W′ "), "", if (content.effortWarning) p.bad else null) }),
+                        listOfNotNull(
+                            content.effort?.let {
+                                if (content.descent) StripCell("STEEPEST", it.removePrefix("STEEPEST "), "", if (content.effortWarning) p.bad else null)
+                                else StripCell("W′", it.removePrefix("W′ "), "", if (content.effortWarning) p.bad else null)
+                            },
+                        ),
                     bar = content.rider,
                     barColor = if (content.effortWarning) p.bad else p.accent,
                 )
@@ -379,6 +388,8 @@ object FieldModelBuilder {
     }
 
     private const val CALORIE_BARS = 8
+    /** A descent stretch at this grade or steeper is flagged on the Descent panel. */
+    private const val STEEP_DESCENT_PERCENT = 10.0
 
     private fun content(src: RideSource, panel: Panel, p: Palette): PanelContent {
         val s = src.settings
@@ -514,6 +525,8 @@ object FieldModelBuilder {
             Panel.NUMBER -> NumberContent
 
             Panel.CLIMB -> climb(src)
+
+            Panel.DESCENT -> descent(src)
 
             Panel.SEGMENT -> segment(src)
 
@@ -759,6 +772,70 @@ object FieldModelBuilder {
                 )
             },
             rider = view.riderAt?.let { (it / c.length).toFloat().coerceIn(0f, 1f) },
+        )
+    }
+
+    /**
+     * The Climb panel's mirror image: to the bottom and the drop large, the descent's profile going
+     * downhill, then four stats. Grades show negative, as the rider's grade field does.
+     */
+    private fun descent(src: RideSource): ClimbContent {
+        val u = src.profile.units
+        val view = src.descent
+            ?: return ClimbContent("DESCENT", null, false, emptyList(), emptyList(), emptyList(), null, "No descent ahead\non this route", descent = true)
+        val p = view.progress
+        val d = p.descent
+        val km = Fmt.distanceUnit(u)
+        val speed = src.value(Metric.SPEED)
+        val grade = Stat("GRADE", Fmt.decimal(src.value(Metric.GRADE), 1), "%")
+        val speedStat = Stat("SPEED", Fmt.speed(speed, u), Fmt.speedUnit(u))
+        val bottomInS = speed?.takeIf { it > 1 }?.let { p.toBottom / it }
+        // The steepest stretch still ahead (a negative grade), the one to be ready for.
+        val steepestAhead = view.slices.filter { it.to >= (view.riderAt ?: 0.0) }.minOfOrNull { it.grade }
+        val big: List<Stat>
+        val stats: List<Stat>
+        if (p.onDescent) {
+            big = listOf(
+                Stat("TO BOTTOM", Fmt.distance(p.toBottom, u), km),
+                Stat("DOWN", Fmt.elevation(p.elevationToBottom, u), Fmt.elevationUnit(u)),
+            )
+            stats = listOf(
+                Stat("AVG LEFT", Fmt.decimal(p.avgGradeLeft?.let { -it }, 1), "%"),
+                grade,
+                speedStat,
+                Stat("BOTTOM IN", bottomInS?.let { Fmt.seconds(it.toLong()) } ?: Fmt.NONE),
+            )
+        } else {
+            big = listOf(
+                Stat("LENGTH", Fmt.distance(d.length, u), km),
+                Stat("DROP", Fmt.elevation(d.drop, u), Fmt.elevationUnit(u)),
+            )
+            stats = listOf(
+                Stat("AVG", Fmt.decimal(-d.avgGrade, 1), "%"),
+                Stat("MAX", Fmt.decimal(-d.maxGrade, 1), "%"),
+                grade,
+                speedStat,
+            )
+        }
+        val lowest = view.slices.minOfOrNull { minOf(it.fromElevation, it.toElevation) } ?: 0.0
+        val span = ((view.slices.maxOfOrNull { maxOf(it.fromElevation, it.toElevation) } ?: 0.0) - lowest).coerceAtLeast(1.0)
+        return ClimbContent(
+            title = "DESCENT ${p.number}/${p.total}" + if (p.onDescent) "" else " IN ${Fmt.distance(p.toStart, u)} ${km.uppercase()}",
+            effort = steepestAhead?.takeIf { p.onDescent }?.let { "STEEPEST ${Fmt.decimal(it, 1)} %" },
+            effortWarning = p.onDescent && steepestAhead != null && steepestAhead <= -STEEP_DESCENT_PERCENT,
+            big = big,
+            stats = stats,
+            bars = view.slices.map {
+                ClimbBar(
+                    from = (it.from / d.length).toFloat(),
+                    to = (it.to / d.length).toFloat(),
+                    fromHeight = ((it.fromElevation - lowest) / span).toFloat(),
+                    toHeight = ((it.toElevation - lowest) / span).toFloat(),
+                    grade = it.grade.toFloat(),
+                )
+            },
+            rider = view.riderAt?.let { (it / d.length).toFloat().coerceIn(0f, 1f) },
+            descent = true,
         )
     }
 

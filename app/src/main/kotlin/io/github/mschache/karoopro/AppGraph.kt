@@ -60,6 +60,7 @@ class AppGraph(context: Context) {
     val panels = PanelController(
         hub, workout, coach, settings, scope,
         climb = { routes.climb() },
+        descent = { routes.descent() },
         segment = { segments.state.value },
         paceAvailable = { routes.current()?.profile?.isNotEmpty() == true },
         hasResults = { results.results.value.isNotEmpty() },
@@ -70,6 +71,7 @@ class AppGraph(context: Context) {
     val mapPanels = PanelController(
         hub, workout, coach, settings, scope,
         climb = { routes.climb() },
+        descent = { routes.descent() },
         segment = { segments.state.value },
         paceAvailable = { routes.current()?.profile?.isNotEmpty() == true },
         hasResults = { results.results.value.isNotEmpty() },

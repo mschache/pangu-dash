@@ -8,6 +8,7 @@ enum class Panel(val title: String) {
     RIDE("RIDE"),
     EFFORT("EFFORT"),
     CLIMB("CLIMB"),
+    DESCENT("DESCENT"),
     SEGMENT("SEGMENT"),
     PACE("PACE"),
     FUEL("FUEL"),
@@ -66,6 +67,8 @@ data class Settings(
     val autoOpenCoach: Boolean = true,
     /** Open the Climb panel just before a climb on the navigated route, and go back at the top. */
     val autoOpenClimb: Boolean = true,
+    /** Open the Descent panel when a descent on the navigated route starts, and go back at the bottom. */
+    val autoOpenDescent: Boolean = true,
     /** Open the Segment panel when a Strava Live Segment comes up, and go back after its result. */
     val autoOpenSegment: Boolean = true,
     /** Beep at the smallest and largest cog (Di2/AXS). */
@@ -112,6 +115,8 @@ data class Settings(
     /** Map layers while navigating: wind on the route ahead, climbs by grade, wind arrows. */
     val mapWindRoute: Boolean = true,
     val mapClimbs: Boolean = true,
+    /** Descents by grade as a blue band; off by default so the map stays as it was. */
+    val mapDescents: Boolean = false,
     val mapWindArrows: Boolean = true,
 ) {
     /** Panel order with any panels added in a newer version appended. */

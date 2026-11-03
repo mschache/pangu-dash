@@ -1,6 +1,7 @@
 package io.github.mschache.karoopro.data
 
 import io.github.mschache.karoopro.calc.ClimbProgress
+import io.github.mschache.karoopro.calc.DescentProgress
 import io.github.mschache.karoopro.calc.SegmentState
 import io.github.mschache.karoopro.coach.CoachInbox
 import io.github.mschache.karoopro.coach.CoachLink
@@ -39,8 +40,8 @@ enum class PanelTargets {
  * ([withNumber]). Flipped by taps and bonus actions, and switched automatically when a workout starts, Di2/AXS shifting appears or a coach
  * message arrives. During a workout, a Coach panel that opened by itself goes back after 20 s
  * without a tap, so coach messages never hide the target for long. The Climb panel opens just
- * before each climb on a navigated route and the Segment panel for a Strava Live Segment; both give
- * the screen back when it's over, unless the rider took over.
+ * before each climb on a navigated route, the Descent panel as each descent starts, and the Segment
+ * panel for a Strava Live Segment; all give the screen back when it's over, unless the rider took over.
  */
 class PanelController(
     private val hub: RideDataHub,
@@ -50,6 +51,8 @@ class PanelController(
     private val scope: CoroutineScope,
     /** The climb the rider is on or the next one on the navigated route. */
     private val climb: () -> ClimbProgress? = { null },
+    /** The descent the rider is on or the next one on the navigated route. */
+    private val descent: () -> DescentProgress? = { null },
     /** The Strava Live Segment coming up, running or just finished. */
     private val segment: () -> SegmentState? = { null },
     /** A route with an elevation profile is navigated, so the Pace panel has a plan. */
@@ -104,6 +107,7 @@ class PanelController(
     }
 
     private val climbPanel = AutoPanel(Panel.CLIMB)
+    private val descentPanel = AutoPanel(Panel.DESCENT)
     private val segmentPanel = AutoPanel(Panel.SEGMENT)
     private val fuelPanel = AutoPanel(Panel.FUEL)
 
@@ -115,14 +119,16 @@ class PanelController(
         fuelUntil = System.currentTimeMillis() + FUEL_SHOW_MS
     }
 
-    /** Set by the 1 s loop: a climb is ahead on the navigated route; a segment is near, running or just done. */
+    /** Set by the 1 s loop: a climb or descent is ahead on the navigated route; a segment is near, running or just done. */
     @Volatile private var climbAhead = false
+    @Volatile private var descentAhead = false
     @Volatile private var segmentNear = false
 
     private fun riderTookOver() {
         beforeCoach = null
         coachOpenedAt = 0
         climbPanel.before = null
+        descentPanel.before = null
         segmentPanel.before = null
         fuelPanel.before = null
     }
@@ -135,6 +141,7 @@ class PanelController(
                     Panel.BIKE -> shiftingAvailable
                     Panel.COACH -> coach.available
                     Panel.CLIMB -> climbAhead
+                    Panel.DESCENT -> descentAhead
                     Panel.SEGMENT -> segmentNear
                     Panel.PACE -> paceAvailable()
                     Panel.RESULTS -> hasResults()
@@ -166,6 +173,7 @@ class PanelController(
     fun tap(direction: Int) {
         coachOpenedAt = 0
         climbPanel.before = null
+        descentPanel.before = null
         segmentPanel.before = null
         fuelPanel.before = null
         if (direction == 0 && shown() == Panel.FUEL) {
@@ -218,6 +226,8 @@ class PanelController(
             while (isActive) {
                 val c = climb()
                 climbAhead = c != null
+                val d = descent()
+                descentAhead = d != null
                 segmentNear = segment() != null
                 shiftingAvailable = hub.stream(DataType.Type.SHIFTING_GEARS).value.field(DataType.Field.SHIFTING_REAR_GEAR) != null
                 val s = settings.value
@@ -225,8 +235,10 @@ class PanelController(
                 val isWorkout = workout.active
                 if (isWorkout && !wasWorkout && s.autoOpenWorkout && Panel.WORKOUT in enabled) show(Panel.WORKOUT)
                 if (openBike && shiftingAvailable && !wasShifting && !isWorkout && s.autoOpenBike && Panel.BIKE in enabled) show(Panel.BIKE)
-                // Climbs open 200 m before they start and close at the top; segments for as long as they're near.
+                // Climbs open 200 m before they start and close at the top; descents as they start (the top
+                // is still the climb's) and close at the bottom; segments for as long as they're near.
                 climbPanel.tick(c != null && c.toStart <= CLIMB_OPEN_BEFORE_M, !isWorkout && s.autoOpenClimb && Panel.CLIMB in enabled)
+                descentPanel.tick(d != null && d.onDescent, !isWorkout && s.autoOpenDescent && Panel.DESCENT in enabled)
                 segmentPanel.tick(segmentNear, !isWorkout && s.autoOpenSegment && Panel.SEGMENT in enabled)
                 fuelPanel.tick(System.currentTimeMillis() < fuelUntil, !isWorkout && Panel.FUEL in enabled)
                 if (shown() != Panel.COACH) {

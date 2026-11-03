@@ -1061,7 +1061,8 @@ class FieldPainter(context: Context) {
         val (topR, bigR, profR, statsR) = splitV(r, 0.11f, 0.27f, 0.36f, 0.2f, gap = r.height() * 0.025f)
         val capH = topR.height() * 0.62f
         val top = topR.top + (topR.height() - capH) / 2
-        val effortW = cc.effort?.let { label(c, it, topR.right, top, capH, if (cc.effortWarning) p.bad else p.good, Paint.Align.RIGHT, topR.width() * 0.45f) } ?: 0f
+        val effortColor = if (cc.effortWarning) p.bad else if (cc.descent) p.dim else p.good
+        val effortW = cc.effort?.let { label(c, it, topR.right, top, capH, effortColor, Paint.Align.RIGHT, topR.width() * 0.45f) } ?: 0f
         label(c, cc.title, topR.left, top, capH, p.text, maxWidth = topR.width() - effortW - gap)
 
         statRow(c, p, cc.big.zip(row(bigR, cc.big.size.coerceAtLeast(1), gap)))
@@ -1078,7 +1079,7 @@ class FieldPainter(context: Context) {
                 lineTo(x(b.to), profR.bottom)
                 close()
             }
-            val color = gradeColor(b.grade)
+            val color = if (cc.descent) descentColor(-b.grade) else gradeColor(b.grade)
             c.drawPath(path, fill(if (cc.rider != null && b.to <= cc.rider) ZoneColors.blend(color, p.background, 0.35f) else color))
         }
         cc.rider?.let { f ->
@@ -1185,6 +1186,15 @@ class FieldPainter(context: Context) {
         grade >= 6 -> 0xFFFF8A00.toInt()
         grade >= 3 -> 0xFFFFC400.toInt()
         else -> 0xFF00C46A.toInt()
+    }
+
+    /** Descent grades ([drop] in percent, positive) in blues, darker the steeper; near-flat stretches pale. */
+    private fun descentColor(drop: Float): Int = when {
+        drop >= 12 -> DESCENT_COLORS[3]
+        drop >= 9 -> DESCENT_COLORS[2]
+        drop >= 6 -> DESCENT_COLORS[1]
+        drop >= 3 -> DESCENT_COLORS[0]
+        else -> 0xFFB3D4EA.toInt()
     }
 
     /** Status and age on top, the message as large as it fits in a card, then tap to confirm. */
@@ -1406,3 +1416,6 @@ class FieldPainter(context: Context) {
         const val MAX_DOTS = 7
     }
 }
+
+/** 3–6 %, 6–9 %, 9–12 %, 12 %+ downhill from sky blue to navy, on the Descent panel and the map's descent band. */
+val DESCENT_COLORS = intArrayOf(0xFF5AC8FA.toInt(), 0xFF2F8FE8.toInt(), 0xFF1F5FC4.toInt(), 0xFF14357F.toInt())

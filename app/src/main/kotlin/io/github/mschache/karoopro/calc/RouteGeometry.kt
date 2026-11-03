@@ -104,13 +104,15 @@ object GradeRuns {
     fun runs(profile: List<ProfilePoint>, from: Double, to: Double, step: Double = 100.0, window: Double = 200.0): List<RouteRun> =
         runs(ElevationProfile(profile), from, to, step, window)
 
-    fun runs(profile: ElevationProfile, from: Double, to: Double, step: Double = 100.0, window: Double = 200.0): List<RouteRun> {
+    /** With [descents], the downhill stretches instead: bucketed by how steeply the route drops. */
+    fun runs(profile: ElevationProfile, from: Double, to: Double, step: Double = 100.0, window: Double = 200.0, descents: Boolean = false): List<RouteRun> {
         if (profile.isEmpty || to <= from) return emptyList()
         val runs = ArrayList<RouteRun>()
+        val sign = if (descents) -1 else 1
         var d = from
         while (d < to) {
             val end = minOf(d + step, to)
-            runs += RouteRun(d, end, bucket(profile.grade((d + end) / 2, window)))
+            runs += RouteRun(d, end, bucket(sign * profile.grade((d + end) / 2, window)))
             d = end
         }
         return mergeRuns(runs)

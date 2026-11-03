@@ -30,6 +30,9 @@ class ElevationProfile(points: List<ProfilePoint>) {
 
     /** Grade in percent around [d], measured over [window] meters. */
     fun grade(d: Double, window: Double = 200.0): Double = (at(d + window / 2) - at(d - window / 2)) / window * 100
+
+    /** The route upside down, every elevation negated, so its descents read as climbs. */
+    fun mirrored(): ElevationProfile = ElevationProfile(sorted.map { ProfilePoint(it.distance, -it.elevation) })
 }
 
 /** A climb from [start] to [end] (meters along the route), the top at [end]. */
@@ -61,6 +64,69 @@ data class GradeSlice(val from: Double, val to: Double, val fromElevation: Doubl
 
 /** The climb to show, with its profile in slices and the rider's place on it (meters from its start, null before it). */
 data class ClimbView(val progress: ClimbProgress, val slices: List<GradeSlice>, val riderAt: Double?)
+
+/** A descent from [start] (the top) to [end] (the bottom), meters along the route; the grades as positive numbers. */
+data class Descent(val start: Double, val end: Double, val drop: Double, val avgGrade: Double, val maxGrade: Double) {
+    val length: Double get() = end - start
+}
+
+/** Where the rider is relative to the descent they are on, or the next one. */
+data class DescentProgress(
+    /** 1-based number of [descent] among the route's [total] descents. */
+    val number: Int,
+    val total: Int,
+    val descent: Descent,
+    /** Meters to the descent's start; zero or less once on it. */
+    val toStart: Double,
+    /** Meters and elevation from the rider (or the top, before it) down to the bottom. */
+    val toBottom: Double,
+    val elevationToBottom: Double,
+    /** Average grade from here to the bottom, in percent, positive. */
+    val avgGradeLeft: Double?,
+) {
+    val onDescent: Boolean get() = toStart <= 0
+}
+
+/** The descent to show, its real (downhill) profile in slices, and the rider's place on it (meters from its start, null before it). */
+data class DescentView(val progress: DescentProgress, val slices: List<GradeSlice>, val riderAt: Double?)
+
+/** Descents along a route: [Climbs] run on the route upside down, with the same thresholds. */
+object Descents {
+    fun detect(profile: ElevationProfile): List<Descent> =
+        Climbs.detect(profile.mirrored()).map { Descent(it.start, it.end, it.gain, it.avgGrade, it.maxGrade) }
+
+    /** The descent the rider is on at [along], or the next one; null past the last descent. */
+    fun progress(descents: List<Descent>, along: Double, profile: ElevationProfile): DescentProgress? {
+        val i = descents.indexOfFirst { it.end > along }
+        if (i < 0) return null
+        val d = descents[i]
+        val from = max(along, d.start)
+        val toBottom = d.end - from
+        val down = (profile.at(from) - profile.at(d.end)).coerceAtLeast(0.0)
+        return DescentProgress(
+            number = i + 1,
+            total = descents.size,
+            descent = d,
+            toStart = d.start - along,
+            toBottom = toBottom,
+            elevationToBottom = down,
+            avgGradeLeft = if (toBottom >= 10) down / toBottom * 100 else null,
+        )
+    }
+
+    /** [progress] plus the descent's profile in about [count] slices for drawing; their grades are negative. */
+    fun view(descents: List<Descent>, along: Double, profile: ElevationProfile, count: Int = 24): DescentView? {
+        val p = progress(descents, along, profile) ?: return null
+        val d = p.descent
+        val width = d.length / count
+        val slices = (0 until count).map { i ->
+            val a = d.start + i * width
+            val b = if (i == count - 1) d.end else a + width
+            GradeSlice(a - d.start, b - d.start, profile.at(a), profile.at(b))
+        }
+        return DescentView(p, slices, if (p.onDescent) along - d.start else null)
+    }
+}
 
 object Climbs {
     /**

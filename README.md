@@ -19,6 +19,7 @@ Below that is a panel you flip with a tap on its left or right side.
 | **Ride** | Four tiles you choose, each with an icon, a colored side bar and a small graphic that fits the value: ride time in hours (or the way to your arrival while navigating), distance along the route, calories per 10 minutes, cadence against your target band, or a 5-minute mini graph |
 | **Effort** | 10-minute effort bars colored by zone, W′ balance, grade, VAM, ascent, terrain profile (the route ahead while navigating) |
 | **Climb** | While you navigate a route with climbs: opens by itself 200 m before each climb and goes back at the top. Climb number, distance and height to the top, average grade left, grade, VAM, time to the top, how long your W′ lasts at this power, and the climb's profile colored by grade. Before a climb it shows how far away it is, its length, gain, average and steepest grade |
+| **Descent** | While you navigate a route with descents: opens by itself as each descent starts and goes back at the bottom. Descent number, distance and height to the bottom, average grade left, grade, speed, time to the bottom, the steepest stretch still ahead (red from 10 %), and the descent's profile in blues, darker the steeper. Before a descent it shows how far away it is, its length, drop, average and steepest grade |
 | **Segment** | Opens by itself when a Strava Live Segment comes up: the gap to your PR in big type (green ahead, red behind), the gap to the KOM, progress, time, distance and climbing left, then your result for 10 seconds |
 | **Pace** | While you navigate a route: a Power Guide-style target power for the stretch you're on (more on climbs, less on descents), PUSH / EASE, time ahead of or behind the plan, arrival time, time to go, stamina, and the next change of target |
 | **Fuel** | Carbs eaten versus burned (estimated from your power), whether you keep up with your target, and when to eat and drink next. A tap in the middle logs a gel (or a bar or bottle, as you choose). Beeps when it's time to eat or drink |
@@ -76,6 +77,7 @@ While you navigate a route, Pangu Dash draws on top of the Karoo's own map:
 
 - **Wind on the route ahead (next 30 km):** green for tailwind, yellow for crosswind, red for headwind. Each point uses the Open-Meteo forecast for the hour you'll actually get there, based on your average speed.
 - **Climbs by grade (next 50 km):** a grey-to-black band under the route, darker for steeper: 3–6 %, 6–9 %, 9–12 %, 12 %+.
+- **Descents by grade (next 50 km, off by default):** the same in blues, sky blue to navy.
 - **Wind arrows every 5 km:** they point where the wind blows, in the same colors.
 
 Each layer can be switched off in Pangu Dash's settings. The layers need an active navigation with a GPS fix, and the wind needs WiFi or the Companion app.
@@ -127,7 +129,7 @@ You can also map these to a remote button as Karoo bonus actions:
 ## Settings
 
 Open the **Pangu Dash** app on the Karoo to:
-- Hide or reorder panels, and choose whether Workout, Bike, Coach, Climb and Segment open by themselves.
+- Hide or reorder panels, and choose whether Workout, Bike, Coach, Climb, Descent and Segment open by themselves.
 - Turn the gear-limit beep on or off.
 - Set your carbs (g/h) and drink (ml/h) targets, the reminders, the carbs in a gel, bar and bottle, and what a tap on the Fuel panel logs.
 - Set pacing: the target on the flat as % of FTP, your bike's weight and riding position.

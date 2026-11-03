@@ -179,6 +179,7 @@ fun SettingsScreen() {
         Toggle("Open Bike panel when Di2/AXS connects", settings.autoOpenBike) { v -> update { it.copy(autoOpenBike = v) } }
         Toggle("Open Coach panel on a new coach message", settings.autoOpenCoach) { v -> update { it.copy(autoOpenCoach = v) } }
         Toggle("Open Climb panel before each climb on a route", settings.autoOpenClimb) { v -> update { it.copy(autoOpenClimb = v) } }
+        Toggle("Open Descent panel as each descent on a route starts", settings.autoOpenDescent) { v -> update { it.copy(autoOpenDescent = v) } }
         Toggle("Open Segment panel for Strava Live Segments", settings.autoOpenSegment) { v -> update { it.copy(autoOpenSegment = v) } }
         val coach by context.graph.coach.state.collectAsState()
         Text(
@@ -359,6 +360,7 @@ fun SettingsScreen() {
         Section("Map layers", "While you navigate a route")
         Toggle("Wind on the route ahead (green tail, yellow cross, red head)", settings.mapWindRoute) { v -> update { it.copy(mapWindRoute = v) } }
         Toggle("Climbs by grade (grey to black band, darker = steeper)", settings.mapClimbs) { v -> update { it.copy(mapClimbs = v) } }
+        Toggle("Descents by grade (blue band, darker = steeper)", settings.mapDescents) { v -> update { it.copy(mapDescents = v) } }
         Toggle("Wind arrows every 5 km", settings.mapWindArrows) { v -> update { it.copy(mapWindArrows = v) } }
 
         Section("Weather")

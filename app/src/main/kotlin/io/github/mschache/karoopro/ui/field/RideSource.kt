@@ -2,6 +2,7 @@ package io.github.mschache.karoopro.ui.field
 
 import io.github.mschache.karoopro.AppGraph
 import io.github.mschache.karoopro.calc.ClimbView
+import io.github.mschache.karoopro.calc.DescentView
 import io.github.mschache.karoopro.calc.FuelSnapshot
 import io.github.mschache.karoopro.calc.Gearing
 import io.github.mschache.karoopro.calc.ProfilePoint
@@ -51,6 +52,8 @@ interface RideSource {
     fun terrainAhead(meters: Double): List<ProfilePoint>
     /** The climb the rider is on or the next one on the navigated route; null without one. */
     val climb: ClimbView?
+    /** The descent the rider is on or the next one on the navigated route; null without one. */
+    val descent: DescentView?
     /** The Strava Live Segment coming up, running or just finished; null otherwise. */
     val segment: SegmentState?
     /** Finished climbs and segments this ride, newest first. */
@@ -97,6 +100,7 @@ class LiveSource(private val g: AppGraph) : RideSource {
 
     override fun terrainAhead(meters: Double): List<ProfilePoint> = g.routes.terrainAhead(meters)
     override val climb get() = g.routes.climbView()
+    override val descent get() = g.routes.descentView()
     override val segment get() = g.segments.state.value
     override val results get() = g.results.results.value
     override val pace get() = g.pace.state()

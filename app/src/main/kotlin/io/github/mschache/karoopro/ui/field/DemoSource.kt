@@ -3,6 +3,8 @@ package io.github.mschache.karoopro.ui.field
 import io.github.mschache.karoopro.calc.ClimbResult
 import io.github.mschache.karoopro.calc.ClimbView
 import io.github.mschache.karoopro.calc.Climbs
+import io.github.mschache.karoopro.calc.DescentView
+import io.github.mschache.karoopro.calc.Descents
 import io.github.mschache.karoopro.calc.ElevationProfile
 import io.github.mschache.karoopro.calc.FuelSnapshot
 import io.github.mschache.karoopro.calc.Gearing
@@ -191,6 +193,11 @@ class DemoSource(
         Climbs.view(Climbs.detect(profile), 2_600.0 + t * 5, profile)
     }
 
+    /** The same route's descent after its climbs, about 3 km losing 250 m; the rider is 1 km down it, the 12 % stretch ahead. */
+    override val descent: DescentView? = ElevationProfile(DEMO_CLIMBS).let { profile ->
+        Descents.view(Descents.detect(profile), 10_000.0 + t * 12, profile)
+    }
+
     /** Halfway up a 1.5 km segment, 7 s ahead of the PR, 41 s behind the KOM. */
     override val segment = SegmentState(
         SegmentPhase.ON,
@@ -276,6 +283,8 @@ class DemoSource(
         val DEMO_CLIMBS = listOf(
             0.0 to 300.0, 1_000.0 to 305.0, 1_400.0 to 330.0, 2_400.0 to 395.0, 3_000.0 to 450.0, 3_600.0 to 470.0,
             4_400.0 to 545.0, 5_000.0 to 560.0, 5_600.0 to 555.0, 7_000.0 to 520.0, 7_800.0 to 600.0, 9_000.0 to 590.0,
+            // Then down: 3.6 km losing 250 m, steepest in the middle.
+            9_600.0 to 560.0, 10_400.0 to 500.0, 11_200.0 to 400.0, 12_000.0 to 345.0, 12_600.0 to 340.0, 13_500.0 to 342.0,
         ).map { ProfilePoint(it.first, it.second) }
     }
 }

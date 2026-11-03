@@ -4,6 +4,10 @@ import io.github.mschache.karoopro.calc.Climb
 import io.github.mschache.karoopro.calc.ClimbProgress
 import io.github.mschache.karoopro.calc.ClimbView
 import io.github.mschache.karoopro.calc.Climbs
+import io.github.mschache.karoopro.calc.Descent
+import io.github.mschache.karoopro.calc.DescentProgress
+import io.github.mschache.karoopro.calc.DescentView
+import io.github.mschache.karoopro.calc.Descents
 import io.github.mschache.karoopro.calc.ElevationProfile
 import io.github.mschache.karoopro.calc.GeoPoint
 import io.github.mschache.karoopro.calc.Polyline
@@ -28,6 +32,7 @@ class RouteTracker(private val hub: RideDataHub) {
     ) {
         val elevation: ElevationProfile by lazy { ElevationProfile(profile) }
         val climbs: List<Climb> by lazy { Climbs.detect(elevation) }
+        val descents: List<Descent> by lazy { Descents.detect(elevation) }
     }
 
     @Volatile private var route: Route? = null
@@ -79,6 +84,18 @@ class RouteTracker(private val hub: RideDataHub) {
     fun climbView(): ClimbView? {
         val r = current() ?: return null
         return Climbs.view(r.climbs, along(r), r.elevation)
+    }
+
+    /** The descent the rider is on or the next one on the current route. */
+    fun descent(): DescentProgress? {
+        val r = current() ?: return null
+        return Descents.progress(r.descents, along(r), r.elevation)
+    }
+
+    /** [descent] with its profile, for the Descent panel. */
+    fun descentView(): DescentView? {
+        val r = current() ?: return null
+        return Descents.view(r.descents, along(r), r.elevation)
     }
 
     /** Route profile within [meters] ahead of the rider, distances relative to the rider; empty without a route. */
