@@ -207,7 +207,11 @@ data class FuelContent(
     val drink: String,
     val drinkDue: Boolean,
     val hint: String,
+    /** CORE sensor: body temperature, its place on the 36.5–40 °C bar, and the heat strain index. */
+    val core: CoreHeat? = null,
 ) : PanelContent
+
+data class CoreHeat(val temp: String, val unit: String, val barFraction: Float, val hsi: String, val level: io.github.mschache.karoopro.calc.HeatStrain.Level)
 
 data class PaceContent(
     val title: String,

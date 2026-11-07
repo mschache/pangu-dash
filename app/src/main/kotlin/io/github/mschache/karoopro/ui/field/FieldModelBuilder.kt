@@ -3,6 +3,7 @@ package io.github.mschache.karoopro.ui.field
 import io.github.mschache.karoopro.calc.ClimbResult
 import io.github.mschache.karoopro.calc.Fmt
 import io.github.mschache.karoopro.calc.FuelTracker
+import io.github.mschache.karoopro.calc.HeatStrain
 import io.github.mschache.karoopro.calc.LapCompare
 import io.github.mschache.karoopro.calc.SegmentPhase
 import io.github.mschache.karoopro.calc.SegmentResult
@@ -118,7 +119,8 @@ object FieldModelBuilder {
                 listOf(Metric.ELAPSED_TIME, Metric.DISTANCE).mapNotNullTo(this) { it.karoo?.typeId }
                 add(DataType.Type.DISTANCE_TO_DESTINATION)
             }
-            Panel.FUEL, Panel.RESULTS -> Unit
+            Panel.FUEL -> Metric.CORE_TEMP.karoo?.typeId?.let { add(it) }
+            Panel.RESULTS -> Unit
             Panel.WEATHER, Panel.WORKOUT, Panel.COACH, Panel.NUMBER -> Unit
         }
     }
@@ -183,7 +185,12 @@ object FieldModelBuilder {
             is PaceContent -> content.message?.let { CompactCells(emptyList(), message = it) }
                 ?: CompactCells(listOf(StripCell("TARGET", content.target, "", statusColor(content.status, p))) + content.stats.map { cell(it) })
             is FuelContent -> CompactCells(
-                listOf(cell(content.eaten), cell(content.burned), cell(content.balance, if (content.onTrack) p.good else p.warn)) +
+                // With a CORE sensor the heat strain index takes the BURNED cell.
+                listOf(
+                    cell(content.eaten),
+                    content.core?.let { StripCell("HSI", it.hsi, "", heatColor(it.level, p)) } ?: cell(content.burned),
+                    cell(content.balance, if (content.onTrack) p.good else p.warn),
+                ) +
                     StripCell("NEXT", if (content.eatDue) "EAT" else if (content.drinkDue) "DRINK" else content.eat, "", if (content.eatDue || content.drinkDue) p.warn else null),
                 bar = content.targetFraction?.coerceIn(0f, 1f),
                 barColor = if (content.onTrack) p.good else p.warn,
@@ -228,6 +235,13 @@ object FieldModelBuilder {
         TargetStatus.EASE -> p.bad
         TargetStatus.IN_RANGE -> p.good
         TargetStatus.NO_DATA -> p.dim
+    }
+
+    /** Heat strain bands: green, yellow, red. */
+    fun heatColor(level: HeatStrain.Level, p: Palette) = when (level) {
+        HeatStrain.Level.LOW -> p.good
+        HeatStrain.Level.MODERATE -> p.warn
+        HeatStrain.Level.HIGH -> p.bad
     }
 
     private fun windColor(kind: io.github.mschache.karoopro.calc.WindKind?, p: Palette) = when (kind) {
@@ -646,6 +660,16 @@ object FieldModelBuilder {
             },
             drinkDue = drinkMin == 0L,
             hint = "TAP TO LOG A ${s.tapLogs.label} (${s.fuelSizes.carbs(s.tapLogs)} g)",
+            core = src.value(Metric.CORE_TEMP)?.takeIf { it in 30.0..45.0 }?.let { core ->
+                val hsi = HeatStrain.index(core, src.value(Metric.HEART_RATE), src.profile.restingHr)
+                CoreHeat(
+                    temp = Metric.CORE_TEMP.format(core, src.profile.units),
+                    unit = Metric.CORE_TEMP.unit(src.profile.units),
+                    barFraction = HeatStrain.barFraction(core),
+                    hsi = Fmt.decimal(hsi, 1),
+                    level = HeatStrain.level(hsi),
+                )
+            },
         )
     }
 

@@ -33,6 +33,7 @@ data class Profile(
     val maxHr: Int,
     val weightKg: Float,
     val units: UnitPrefs,
+    val restingHr: Int = 60,
 ) {
     companion object {
         val DEFAULT = Profile(
@@ -49,6 +50,7 @@ data class Profile(
             powerZones = p.powerZones.map { ZoneRange(it.min, it.max) },
             hrZones = p.heartRateZones.map { ZoneRange(it.min, it.max) },
             maxHr = p.maxHr,
+            restingHr = p.restingHr,
             weightKg = p.weight,
             units = UnitPrefs(
                 metricDistance = p.preferredUnit.distance == UserProfile.PreferredUnit.UnitType.METRIC,

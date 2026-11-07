@@ -1144,9 +1144,15 @@ class FieldPainter(context: Context) {
     /** Eaten, burned and the balance; the target bar; when to eat and drink next; what a tap logs. */
     private fun fuel(c: Canvas, m: FieldModel, fc: FuelContent, r: RectF) {
         val p = m.palette
-        val rows = splitV(r, 0.1f, 0.3f, 0.06f, 0.2f, 0.12f, 0.1f, gap = r.height() * 0.025f)
+        val core = fc.core
+        val rows = if (core == null) {
+            splitV(r, 0.1f, 0.3f, 0.06f, 0.2f, 0.12f, 0.1f, gap = r.height() * 0.025f)
+        } else {
+            splitV(r, 0.1f, 0.24f, 0.05f, 0.16f, 0.1f, 0.15f, 0.08f, gap = r.height() * 0.022f)
+        }
         val (topR, statsR, barR, eatR, drinkR) = rows
-        val hintR = rows[5]
+        val hintR = rows.last()
+        if (core != null) coreRow(c, p, core, rows[5])
         label(c, fc.title, topR.left, topR.top + topR.height() * 0.19f, topR.height() * 0.62f, p.text, maxWidth = topR.width())
         val cells = row(statsR, 3, r.width() * 0.03f)
         statRow(c, p, listOf(fc.eaten to cells[0], fc.burned to cells[1], fc.balance.copy(accent = if (fc.onTrack) p.good else p.warn) to cells[2]))
@@ -1154,6 +1160,31 @@ class FieldPainter(context: Context) {
         label(c, fc.eat, eatR.left, eatR.top + eatR.height() * 0.12f, eatR.height() * 0.7f, if (fc.eatDue) p.warn else p.text, maxWidth = eatR.width())
         label(c, fc.drink, drinkR.left, drinkR.top + drinkR.height() * 0.15f, drinkR.height() * 0.62f, if (fc.drinkDue) p.warn else p.dim, maxWidth = drinkR.width())
         label(c, fc.hint, hintR.centerX(), hintR.top + hintR.height() * 0.15f, hintR.height() * 0.6f, p.accent, Paint.Align.CENTER, hintR.width())
+    }
+
+    /** CORE body temperature on a 36.5–40 °C bar, and the heat strain index colored by its band. */
+    private fun coreRow(c: Canvas, p: Palette, core: CoreHeat, r: RectF) {
+        val color = FieldModelBuilder.heatColor(core.level, p)
+        val h = r.height()
+        val smallH = h * 0.3f
+        val bigH = h * 0.56f
+        val smallTop = r.centerY() - smallH / 2 + (bigH - smallH) / 2
+        val bigTop = r.centerY() - bigH / 2
+        var x = r.left
+        x += label(c, "CORE", x, smallTop, smallH, p.dim, face = medium) + h * 0.15f
+        x += label(c, core.temp, x, bigTop, bigH, p.text, steady = true) + h * 0.05f
+        x += label(c, core.unit, x, smallTop, smallH, p.dim, face = medium) + h * 0.25f
+
+        val hsiW = label(c, core.hsi, r.right, bigTop, bigH, color, Paint.Align.RIGHT, steady = true)
+        val hsiLabelW = label(c, "HSI", r.right - hsiW - h * 0.12f, smallTop, smallH, p.dim, Paint.Align.RIGHT, face = medium)
+        val barRight = r.right - hsiW - h * 0.12f - hsiLabelW - h * 0.3f
+        if (barRight - x > h) {
+            val barH = h * 0.16f
+            val bar = RectF(x, r.centerY() - barH / 2 + (bigH - smallH) / 4, barRight, r.centerY() + barH / 2 + (bigH - smallH) / 4)
+            progress(c, core.barFraction, bar, color, p.faint)
+            val knobX = bar.left + bar.width() * core.barFraction.coerceIn(0f, 1f)
+            c.drawCircle(knobX.coerceIn(bar.left + barH, bar.right - barH), bar.centerY(), barH * 1.1f, fill(p.text))
+        }
     }
 
     /** Like the Workout panel: this stretch's target with PUSH/EASE, a gauge, the plan's numbers and the next change. */
