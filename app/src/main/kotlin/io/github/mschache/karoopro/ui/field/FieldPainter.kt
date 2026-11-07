@@ -269,9 +269,24 @@ class FieldPainter(context: Context) {
             Paint.Align.CENTER -> r.centerX()
             Paint.Align.RIGHT -> r.right
         }
-        label(c, s.label, x, r.top, labelCap ?: labelH, p.dim, align, r.width(), medium)
-        number(c, s.value, s.unit, statValue(r), s.accent ?: p.text, p.dim, STAT_INK, align, maxSize = valueSize)
+        // Scannable like a glance at a sign: the label in white, its unit beside it in grey, the number alone below.
+        val cap = labelCap ?: labelH
+        val unitGap = cap * 0.35f
+        val unitW = if (s.unit.isEmpty()) 0f else textPaint(0, cap / capRatio, face = medium).measureText(s.unit) + unitGap
+        val labelW = labelWidth(s.label, cap, r.width() - unitW)
+        val start = when (align) {
+            Paint.Align.LEFT -> r.left
+            Paint.Align.CENTER -> r.centerX() - (labelW + unitW) / 2
+            Paint.Align.RIGHT -> r.right - labelW - unitW
+        }
+        label(c, s.label, start, r.top, cap, p.text, maxWidth = r.width() - unitW)
+        if (s.unit.isNotEmpty()) label(c, s.unit, start + labelW + unitGap, r.top, cap, p.dim, face = medium)
+        number(c, s.value, "", statValue(r), s.accent ?: p.text, p.dim, STAT_INK, align, maxSize = valueSize)
     }
+
+    /** How wide [label] draws [text] at [cap], at most [maxWidth]. */
+    private fun labelWidth(text: String, cap: Float, maxWidth: Float): Float =
+        if (text.isEmpty()) 0f else min(textPaint(0, cap / capRatio).measureText(text), maxWidth)
 
     /**
      * [r] split into columns as wide as each stat needs at one size (its value with unit, or its label), so a long
@@ -281,11 +296,10 @@ class FieldPainter(context: Context) {
         val n = stats.size
         if (n == 0) return emptyList()
         val p = textPaint(0, 100f)
-        val u = textPaint(0, 100f * 0.28f, face = medium)
         val labelPaint = textPaint(0, 100f * inkPer100() / 100f * LABEL_TO_INK / capRatio, face = medium)
         val needs = stats.map { s ->
-            val value = steadyWidth(s.value, p) + if (s.unit.isNotEmpty()) 6f + u.measureText(s.unit) else 0f
-            max(value, labelPaint.measureText(s.label)) + 12f
+            val value = steadyWidth(s.value, p)
+            max(value, labelPaint.measureText(listOf(s.label, s.unit).filter { it.isNotEmpty() }.joinToString("  "))) + 12f
         }
         val avail = r.width() - gap * (n - 1)
         var x = r.left
@@ -295,7 +309,7 @@ class FieldPainter(context: Context) {
         }
     }
 
-    private fun statValue(r: RectF) = RectF(r.left, r.top + r.height() * STAT_LABEL * 1.6f, r.right, r.bottom)
+    private fun statValue(r: RectF) = RectF(r.left, r.top + r.height() * STAT_LABEL * 1.45f, r.right, r.bottom)
 
     /**
      * Values side by side at one size: every label as large as the tightest one fits, every number as large as the
@@ -303,9 +317,9 @@ class FieldPainter(context: Context) {
      */
     private fun statRow(c: Canvas, p: Palette, cells: List<Pair<Stat, RectF>>, align: Paint.Align = Paint.Align.LEFT): Float {
         if (cells.isEmpty()) return 0f
-        val size = cells.minOf { (s, r) -> numberSize(s.value, s.unit, statValue(r), STAT_INK) }
+        val size = cells.minOf { (s, r) -> numberSize(s.value, "", statValue(r), STAT_INK) }
         // Labels stay clearly smaller than the numbers, even when a long value keeps the numbers small.
-        val cap = min(cells.minOf { (s, r) -> labelCap(s.label, r.height() * STAT_LABEL, r.width()) }, inkPer100() * size / 100f * LABEL_TO_INK)
+        val cap = min(cells.minOf { (s, r) -> labelCap(listOf(s.label, s.unit).filter { it.isNotEmpty() }.joinToString("  "), r.height() * STAT_LABEL, r.width(), bold) }, inkPer100() * size / 100f * LABEL_TO_INK)
         cells.forEach { (s, r) -> stat(c, p, s, r, align, cap, size) }
         return cap
     }
@@ -826,7 +840,9 @@ class FieldPainter(context: Context) {
                 val f = l.fields.getOrNull(ri * 2 + ci) ?: return@forEachIndexed
                 card(c, cr, p.card, cardCorner(m))
                 val pad = cr.width() * 0.05f
-                label(c, f.label, cr.left + pad, cr.top + cr.height() * 0.1f, cr.height() * 0.12f, p.dim, face = medium)
+                // One word in white ("TIME", the title already says LAP), the unit in the top right corner.
+                val unitW = if (f.unit.isEmpty()) 0f else label(c, f.unit, cr.right - pad, cr.top + cr.height() * 0.1f, cr.height() * 0.13f, p.dim, Paint.Align.RIGHT, face = medium)
+                label(c, f.label.removePrefix("LAP "), cr.left + pad, cr.top + cr.height() * 0.1f, cr.height() * 0.15f, p.text, maxWidth = cr.width() - pad * 3 - unitW)
                 val (arrowText, color) = when (f.trend) {
                     Trend.UP -> "▲" to p.good
                     Trend.DOWN -> "▼" to p.bad
@@ -836,7 +852,7 @@ class FieldPainter(context: Context) {
                 val arrowW = cr.width() * 0.16f
                 // Averages show the change as a pill under the value; the rest keep the arrow beside it.
                 val numberRight = if (f.delta != null) cr.right - pad else cr.right - pad - arrowW
-                number(c, f.value, f.unit, RectF(cr.left + pad, cr.top + cr.height() * 0.3f, numberRight, cr.top + cr.height() * 0.72f), p.text, p.dim, 0.9f, unitScale = 0.3f)
+                number(c, f.value, "", RectF(cr.left + pad, cr.top + cr.height() * 0.3f, numberRight, cr.top + cr.height() * 0.72f), p.text, p.dim, 0.9f)
                 if (f.delta != null) {
                     pill(c, f.delta, cr.right - pad, cr.top + cr.height() * 0.73f, cr.height() * 0.21f, color)
                 } else if (arrowText.isNotEmpty()) {
@@ -926,7 +942,7 @@ class FieldPainter(context: Context) {
             c, m.palette,
             listOf(Stat("STEP AVG", Fmt.int(s.stepAverage?.toDouble()), wc.unit) to cells[0], Stat("IN TARGET", Fmt.int(s.inTargetPercent?.toDouble()), "%", p.good) to cells[1]),
         )
-        label(c, "PROGRESS", cells[2].left, cells[2].top, min(cap, labelCap("PROGRESS", cells[2].height() * STAT_LABEL, cells[2].width())), p.dim, face = medium)
+        label(c, "PROGRESS", cells[2].left, cells[2].top, min(cap, labelCap("PROGRESS", cells[2].height() * STAT_LABEL, cells[2].width(), bold)), p.text)
         progress(c, s.progress, RectF(cells[2].left, cells[2].centerY(), cells[2].right, cells[2].centerY() + cells[2].height() * 0.18f), p.text, p.faint)
 
         val whatNext = wc.next ?: "STEP ${s.stepNumber + 1}/${s.stepCount}"
@@ -1433,7 +1449,7 @@ class FieldPainter(context: Context) {
         const val DIGITS = "0123456789"
 
         /** A stat's label height and its number's ink, as fractions of the stat's box and of what's left under the label. */
-        const val STAT_LABEL = 0.2f
+        const val STAT_LABEL = 0.24f
         const val STAT_INK = 0.8f
 
         /** A label's cap height at most this share of the numbers' ink height. */
